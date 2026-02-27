@@ -37,11 +37,55 @@ Dibangun dengan antarmuka (UI) bernuansa *Premium Cafe Aesthetic* — Espresso, 
 
 ## 🛠️ Tech Stack
 
-| Layer | Teknologi |
+Proyek ini dibangun menggunakan **PERN Stack** — salah satu stack modern yang sangat populer di industri saat ini.
+
+> 💡 **PERN** = **P**ostgreSQL · **E**xpress.js · **R**eact.js · **N**ode.js
+
+---
+
+### 🖥️ Frontend (`/client`)
+
+Bagian yang dilihat dan diinteraksikan oleh Kasir dan Admin.
+
+| Teknologi | Peran |
 |---|---|
-| **Frontend** | React.js, React Router, Recharts, Axios, Custom CSS |
-| **Backend** | Node.js, Express.js, Bcrypt, Nodemailer (via Mailtrap) |
-| **Database** | PostgreSQL (modul `pg`) |
+| **React.js** | Library utama JavaScript untuk membangun UI interaktif dan Single Page Application (SPA) |
+| **Vite** | Build tool generasi baru yang membuat proses pengembangan React menjadi sangat cepat |
+| **Tailwind CSS** | Framework CSS berbasis utility-class untuk mendesain tampilan langsung di JSX (misal: `bg-white`, `text-2xl`, `rounded-lg`) |
+| **Axios** | Library untuk melakukan HTTP Request dari Frontend ke Backend |
+| **React Router DOM** | Mengatur navigasi perpindahan halaman tanpa reload browser (misal: dari `/login` ke `/admin/dashboard`) |
+| **React Hot Toast** | Library notifikasi pop-up (*toast*) yang cantik dan responsif |
+
+---
+
+### ⚙️ Backend (`/server`)
+
+"Otak" di balik layar yang memproses data, menghitung gaji, dan mengatur keamanan.
+
+| Teknologi | Peran |
+|---|---|
+| **Node.js** | Runtime yang memungkinkan JavaScript dijalankan di sisi server |
+| **Express.js** | Framework web untuk Node.js yang memudahkan pembuatan Routing dan RESTful API |
+| **Nodemailer** | Modul untuk mengirimkan email dari server (digunakan untuk mengirim kode OTP) |
+| **Bcrypt** | Library keamanan untuk mengenkripsi password sebelum disimpan ke database |
+| **Dotenv / Dotenvx** | Mengelola variabel lingkungan (password DB, kredensial Mailtrap) agar aman dan tidak bocor ke dalam kode |
+
+---
+
+### 🗄️ Database
+
+| Teknologi | Peran |
+|---|---|
+| **PostgreSQL** | RDBMS tingkat enterprise yang tangguh untuk mengelola data transaksional (pesanan, absensi) secara presisi |
+| **`pg` (node-postgres)** | Modul untuk menghubungkan backend Node.js dengan database PostgreSQL |
+
+---
+
+### 🌐 External Service
+
+| Layanan | Peran |
+|---|---|
+| **Mailtrap** | SMTP sandbox untuk menguji pengiriman email OTP dengan aman tanpa khawatir masuk folder spam |
 
 ---
 
