@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api from '../api';
 import toast, { Toaster } from 'react-hot-toast';
 
 export default function Categories() {
@@ -14,7 +14,7 @@ export default function Categories() {
   const fetchCategories = async () => {
     setIsFetching(true);
     try {
-      const res = await axios.get('http://localhost:5000/api/categories');
+      const res = await api.get('/api/categories');
       setCategories(res.data);
     } catch {
       toast.error('Gagal mengambil data kategori');
@@ -36,10 +36,10 @@ export default function Categories() {
     setIsLoading(true);
     try {
       if (editId) {
-        await axios.put(`http://localhost:5000/api/categories/${editId}`, { name });
+        await api.put(`/api/categories/${editId}`, { name });
         toast.success('Kategori berhasil diperbarui!');
       } else {
-        await axios.post('http://localhost:5000/api/categories', { name });
+        await api.post('/api/categories', { name });
         toast.success('Kategori berhasil ditambahkan!');
       }
       setName(''); setEditId(null);
@@ -62,7 +62,7 @@ export default function Categories() {
   const confirmDelete = async () => {
     if (!deleteId) return;
     try {
-      await axios.delete(`http://localhost:5000/api/categories/${deleteId}`);
+      await api.delete(`/api/categories/${deleteId}`);
       toast.success('Kategori berhasil dihapus!');
       fetchCategories();
     } catch {

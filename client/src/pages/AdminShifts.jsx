@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import toast, { Toaster } from 'react-hot-toast';
 
 /* ─── helpers ─── */
@@ -36,7 +36,7 @@ export default function AdminShifts() {
   const fetchShifts = async () => {
     setIsFetching(true);
     try {
-      const res = await axios.get('http://localhost:5000/api/hr/shifts');
+      const res = await api.get('/api/hr/shifts');
       setShifts(res.data);
     } catch {
       toast.error('Gagal mengambil data shift');
@@ -49,7 +49,7 @@ export default function AdminShifts() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await axios.post('http://localhost:5000/api/hr/shifts', formData);
+      await api.post('/api/hr/shifts', formData);
       toast.success('Shift baru berhasil ditambahkan!');
       setFormData({ name: '', start_time: '', end_time: '' });
       setIsModalOpen(false);

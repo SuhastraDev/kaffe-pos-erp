@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api, { API_URL } from '../api';
 import toast, { Toaster } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -30,12 +30,12 @@ export default function Pos() {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const prodRes = await axios.get('http://localhost:5000/api/products');
+        const prodRes = await api.get('/api/products');
         setProducts(prodRes.data.filter(p => p.is_available && p.stock > 0));
         if (user?.id) {
           const [absRes, statRes] = await Promise.all([
-            axios.get(`http://localhost:5000/api/hr/attendance/today/${user.id}`),
-            axios.get(`http://localhost:5000/api/hr/my-stats/${user.id}`)
+            api.get(`/api/hr/attendance/today/${user.id}`),
+            api.get(`/api/hr/my-stats/${user.id}`)
           ]);
           setAttendance(absRes.data);
           setStats(statRes.data);
@@ -52,7 +52,7 @@ export default function Pos() {
     if (showQrisModal && pendingOrderId) {
       interval = setInterval(async () => {
         try {
-          const res = await axios.get(`http://localhost:5000/api/orders/${pendingOrderId}/status`);
+          const res = await api.get(`/api/orders/${pendingOrderId}/status`);
           if (res.data.status === 'completed') {
             clearInterval(interval);
             toast.success('Pembayaran QRIS Diterima! ✅');
@@ -68,7 +68,7 @@ export default function Pos() {
   const handleClockIn = async () => {
     setIsAbsenLoading(true);
     try {
-      const res = await axios.post('http://localhost:5000/api/hr/attendance/clock-in', { user_id: user.id });
+      const res = await api.post('/api/hr/attendance/clock-in', { user_id: user.id });
       setAttendance(res.data.data);
       toast.success(res.data.message);
     } catch (error) {
@@ -80,7 +80,7 @@ export default function Pos() {
     if (!window.confirm("Yakin ingin absen pulang dan mengakhiri shift?")) return;
     setIsAbsenLoading(true);
     try {
-      const res = await axios.post('http://localhost:5000/api/hr/attendance/clock-out', { user_id: user.id });
+      const res = await api.post('/api/hr/attendance/clock-out', { user_id: user.id });
       setAttendance(res.data.data);
       toast.success(res.data.message);
     } catch (error) {
@@ -92,7 +92,7 @@ export default function Pos() {
     e.preventDefault();
     setIsAbsenLoading(true);
     try {
-      const res = await axios.post('http://localhost:5000/api/hr/attendance/leave', { user_id: user.id, ...leaveData });
+      const res = await api.post('/api/hr/attendance/leave', { user_id: user.id, ...leaveData });
       setAttendance(res.data.data);
       toast.success('Keterangan berhasil dikirim ke Admin');
       setShowLeaveModal(false);
@@ -146,7 +146,7 @@ export default function Pos() {
         change_amount: paymentMethod === 'non-cash' ? 0 : changeAmount,
         notes, items: cart,
       };
-      const response = await axios.post('http://localhost:5000/api/orders', payload);
+      const response = await api.post('/api/orders', payload);
       if (paymentMethod === 'non-cash') {
         setQrisData(response.data.qr_string);
         setPendingOrderId(response.data.order_id);
@@ -163,7 +163,7 @@ export default function Pos() {
   const handleQrisSuccess = async () => {
     setIsLoading(true);
     try {
-      await axios.put(`http://localhost:5000/api/orders/${pendingOrderId}/status`, { status: 'completed' });
+      await api.put(`/api/orders/${pendingOrderId}/status`, { status: 'completed' });
       toast.success('Simulasi Pembayaran QRIS Sukses!');
       setShowQrisModal(false);
       navigate(`/kasir/receipt/${pendingOrderId}`);
@@ -763,7 +763,7 @@ export default function Pos() {
                 <div key={p.id} className="prod-card" onClick={() => addToCart(p)}>
                   <div className="prod-img">
                     {p.image_url
-                      ? <img src={`http://localhost:5000${p.image_url}`} alt={p.name} />
+                      ? <img src={`${API_URL}${p.image_url}`} alt={p.name} />
                       : <div className="prod-img-placeholder">
                           <svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
                           <span>No Image</span>

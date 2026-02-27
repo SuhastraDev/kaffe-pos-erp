@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import toast, { Toaster } from 'react-hot-toast';
 
 const Skeleton = ({ w = '100%', h = 16, r = 8 }) => (
@@ -34,7 +34,7 @@ export default function Stock() {
   const fetchStocks = async () => {
     setIsFetchingStocks(true);
     try {
-      const res = await axios.get('http://localhost:5000/api/stock');
+      const res = await api.get('/api/stock');
       setStocks(res.data);
     } catch { toast.error('Gagal memuat data stok'); }
     finally { setIsFetchingStocks(false); }
@@ -43,7 +43,7 @@ export default function Stock() {
   const fetchLogs = async () => {
     setIsFetchingLogs(true);
     try {
-      const res = await axios.get('http://localhost:5000/api/stock/logs');
+      const res = await api.get('/api/stock/logs');
       setLogs(res.data);
     } catch { toast.error('Gagal memuat riwayat stok'); }
     finally { setIsFetchingLogs(false); }
@@ -57,7 +57,7 @@ export default function Stock() {
       return toast.error('Pilih produk dan masukkan jumlah yang valid!');
     setIsLoading(true);
     try {
-      await axios.post('http://localhost:5000/api/stock/add', {
+      await api.post('/api/stock/add', {
         product_id: formData.product_id,
         user_id: user.id,
         quantity: formData.quantity,

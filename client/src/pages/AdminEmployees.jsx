@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import toast, { Toaster } from 'react-hot-toast';
 
 const formatRp = (v) => 'Rp ' + Number(v).toLocaleString('id-ID');
@@ -34,8 +34,8 @@ export default function AdminEmployees() {
     setIsFetching(true);
     try {
       const [empRes, shiftRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/hr/employees'),
-        axios.get('http://localhost:5000/api/hr/shifts'),
+        api.get('/api/hr/employees'),
+        api.get('/api/hr/shifts'),
       ]);
       setEmployees(empRes.data);
       setShifts(shiftRes.data);
@@ -56,7 +56,7 @@ export default function AdminEmployees() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await axios.put(`http://localhost:5000/api/hr/employees/${selectedEmp.id}`, formData);
+      await api.put(`/api/hr/employees/${selectedEmp.id}`, formData);
       toast.success(`Data ${selectedEmp.name} diperbarui!`);
       setIsModalOpen(false);
       fetchData();

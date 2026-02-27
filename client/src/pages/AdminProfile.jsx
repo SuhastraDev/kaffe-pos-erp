@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import toast, { Toaster } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -30,7 +30,7 @@ export default function AdminProfile() {
   const fetchProfile = async () => {
     setIsFetching(true);
     try {
-      const res = await axios.get(`http://localhost:5000/api/profile/${localUser.id}`);
+      const res = await api.get(`/api/profile/${localUser.id}`);
       setUserProfile(res.data);
     } catch {
       toast.error('Gagal memuat profil');
@@ -43,7 +43,7 @@ export default function AdminProfile() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await axios.put(`http://localhost:5000/api/profile/${localUser.id}`, {
+      await api.put(`/api/profile/${localUser.id}`, {
         name: userProfile.name, email: userProfile.email,
       });
       toast.success('Informasi profil diperbarui!');
@@ -57,7 +57,7 @@ export default function AdminProfile() {
   const handleRequestOTP = async () => {
     setIsLoading(true);
     try {
-      await axios.post('http://localhost:5000/api/profile/request-otp', { id: localUser.id });
+      await api.post('/api/profile/request-otp', { id: localUser.id });
       toast.success('Kode OTP terkirim ke email Anda!');
       setStep(2);
     } catch (error) {
@@ -71,7 +71,7 @@ export default function AdminProfile() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await axios.post('http://localhost:5000/api/profile/reset-password', {
+      await api.post('/api/profile/reset-password', {
         id: localUser.id, otp: formData.otp, newPassword: formData.newPassword,
       });
       toast.success('Password diubah! Silakan login kembali.');

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 
 export default function KasirLayout() {
   const navigate  = useNavigate();
@@ -24,7 +24,7 @@ export default function KasirLayout() {
   // Cek Status Absensi setiap kali ganti halaman (agar navbar selalu update)
   useEffect(() => {
     if (user?.id) {
-      axios.get(`http://localhost:5000/api/hr/attendance/today/${user.id}`)
+      api.get(`/api/hr/attendance/today/${user.id}`)
         .then(res => setAttendance(res.data))
         .catch(err => console.error("Gagal load status header", err));
     }

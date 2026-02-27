@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import { Link } from 'react-router-dom';
 
 const formatRp    = (v) => 'Rp ' + Number(v).toLocaleString('id-ID');
@@ -72,7 +72,7 @@ export default function KasirHistory() {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/orders/user/${user.id}`);
+        const res = await api.get(`/api/orders/user/${user.id}`);
         setOrders(res.data);
       } catch (e) {
         console.error('Gagal mengambil riwayat', e);

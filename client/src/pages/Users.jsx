@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import toast, { Toaster } from 'react-hot-toast';
 
 const Skeleton = ({ w = '100%', h = 14, r = 8 }) => (
@@ -36,7 +36,7 @@ export default function Users() {
   const fetchUsers = async () => {
     setIsFetching(true);
     try {
-      const res = await axios.get('http://localhost:5000/api/users');
+      const res = await api.get('/api/users');
       setUsers(res.data);
     } catch { toast.error('Gagal memuat data user'); }
     finally { setIsFetching(false); }
@@ -67,12 +67,12 @@ export default function Users() {
     setIsLoading(true);
     try {
       if (editId) {
-        await axios.put(`http://localhost:5000/api/users/${editId}`, {
+        await api.put(`/api/users/${editId}`, {
           name: formData.name, role: formData.role, is_active: formData.is_active
         });
         toast.success('User berhasil diperbarui!');
       } else {
-        await axios.post('http://localhost:5000/api/users', formData);
+        await api.post('/api/users', formData);
         toast.success('User berhasil ditambahkan!');
       }
       handleCloseModal(); fetchUsers();

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api from '../api';
 
 const formatRp = (v) => 'Rp ' + Math.round(Number(v)).toLocaleString('id-ID');
 const formatDuration = (seconds) => {
@@ -45,7 +45,7 @@ export default function KasirAbsen() {
 
   const fetchStats = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/hr/my-stats/${user.id}`);
+      const res = await api.get(`/api/hr/my-stats/${user.id}`);
       setStats(res.data);
       setLocalWorked(Number(res.data?.attendance?.total_worked_seconds || 0));
     } catch (e) {

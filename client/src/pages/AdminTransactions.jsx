@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import { Link } from 'react-router-dom';
 
 const formatRp = (v) => 'Rp ' + Number(v).toLocaleString('id-ID');
@@ -28,7 +28,7 @@ export default function AdminTransactions() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/orders');
+        const res = await api.get('/api/orders');
         setOrders(res.data);
       } catch (e) {
         console.error('Gagal memuat transaksi', e);

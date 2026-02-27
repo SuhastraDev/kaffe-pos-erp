@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import toast, { Toaster } from 'react-hot-toast';
@@ -91,7 +91,7 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/dashboard');
+      const res = await api.get('/api/dashboard');
       setData(res.data);
       const formatted = (res.data.sales_data || []).map(item => ({
         label: new Date(item.date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),

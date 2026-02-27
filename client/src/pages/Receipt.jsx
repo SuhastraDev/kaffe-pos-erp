@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { QRCodeCanvas } from 'qrcode.react'; // <-- IMPORT LIBRARY QR CODE
@@ -16,7 +16,7 @@ export default function Receipt() {
   useEffect(() => {
     const fetchOrder = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/api/orders/${id}`);
+        const response = await api.get(`/api/orders/${id}`);
         setOrder(response.data);
       } catch (error) {
         console.error('Gagal mengambil data transaksi', error);

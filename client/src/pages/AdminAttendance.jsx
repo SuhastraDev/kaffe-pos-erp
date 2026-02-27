@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 
 /* ─── helpers ─── */
 const Skeleton = ({ w = '100%', h = 14, r = 8 }) => (
@@ -46,7 +46,7 @@ export default function AdminAttendance() {
   const fetchHistory = async () => {
     setIsFetching(true);
     try {
-      const res = await axios.get(`http://localhost:5000/api/hr/attendance-history?month=${selectedMonth}`);
+      const res = await api.get(`/api/hr/attendance-history?month=${selectedMonth}`);
       setHistory(res.data);
     } catch {
       /* silent */

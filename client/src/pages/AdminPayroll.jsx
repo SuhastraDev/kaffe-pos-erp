@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import axios from 'axios';
+import api from '../api';
 import toast, { Toaster } from 'react-hot-toast';
 
 const TOTAL_TARGET_SECONDS = 26 * 8 * 3600;
@@ -81,7 +81,7 @@ export default function AdminPayroll() {
   const fetchPayrollData = useCallback(async (showSkeleton = false) => {
     if (showSkeleton) setIsFirstLoad(true);
     try {
-      const res = await axios.get(`http://localhost:5000/api/hr/payrolls?month=${selectedMonth}`);
+      const res = await api.get(`/api/hr/payrolls?month=${selectedMonth}`);
       setPayrolls(res.data);
       fetchedAtRef.current = Date.now();
     } catch { /* silent */ }
@@ -120,7 +120,7 @@ export default function AdminPayroll() {
     e.preventDefault(); setIsLoading(true);
     const base = Number(selectedEmp?.base_salary || 0), bon = Number(formData.bonus || 0), ded = Number(formData.deductions || 0);
     try {
-      await axios.post('http://localhost:5000/api/hr/payrolls', {
+      await api.post('/api/hr/payrolls', {
         user_id: selectedEmp.user_id, period_month: selectedMonth,
         base_salary: base, bonus: bon, deductions: ded,
         net_salary: base + bon - ded, status: formData.status, notes: formData.notes,

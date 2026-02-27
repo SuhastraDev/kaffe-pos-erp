@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api';
 import toast, { Toaster } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -20,7 +20,7 @@ export default function KasirProfile() {
   const localUser = JSON.parse(localStorage.getItem('user')) || {};
 
   useEffect(() => {
-    axios.get(`http://localhost:5000/api/profile/${localUser.id}`)
+    api.get(`/api/profile/${localUser.id}`)
       .then(res => setUserProfile(res.data))
       .catch(() => toast.error('Gagal memuat profil'));
   }, [localUser.id]);
@@ -28,7 +28,7 @@ export default function KasirProfile() {
   const handleRequestOTP = async () => {
     setIsLoading(true);
     try {
-      await axios.post('http://localhost:5000/api/profile/request-otp', { id: localUser.id });
+      await api.post('/api/profile/request-otp', { id: localUser.id });
       toast.success('Kode OTP telah meluncur ke email Anda!');
       setStep(2); 
     } catch (error) {
@@ -44,7 +44,7 @@ export default function KasirProfile() {
     
     setIsLoading(true);
     try {
-      await axios.post('http://localhost:5000/api/profile/reset-password', {
+      await api.post('/api/profile/reset-password', {
         id: localUser.id,
         otp: formData.otp,
         newPassword: formData.newPassword

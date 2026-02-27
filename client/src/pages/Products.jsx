@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import api, { API_URL } from '../api';
 import toast, { Toaster } from 'react-hot-toast';
 
 const formatRp = (v) => 'Rp ' + Number(v).toLocaleString('id-ID');
@@ -34,7 +34,7 @@ export default function Products() {
   const fetchProducts = async () => {
     setIsFetching(true);
     try {
-      const res = await axios.get('http://localhost:5000/api/products');
+      const res = await api.get('/api/products');
       setProducts(res.data);
     } catch { toast.error('Gagal mengambil data produk'); }
     finally { setIsFetching(false); }
@@ -42,7 +42,7 @@ export default function Products() {
 
   const fetchCategories = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/categories');
+      const res = await api.get('/api/categories');
       setCategories(res.data);
     } catch {}
   };
@@ -69,7 +69,7 @@ export default function Products() {
       stock: p.stock, description: p.description || '', is_available: p.is_available
     });
     setImageFile(null);
-    setImagePreview(p.image_url ? `http://localhost:5000${p.image_url}` : null);
+    setImagePreview(p.image_url ? `${API_URL}${p.image_url}` : null);
     setEditId(p.id); setIsModalOpen(true);
   };
 
@@ -83,10 +83,10 @@ export default function Products() {
     if (imageFile) data.append('image', imageFile);
     try {
       if (editId) {
-        await axios.put(`http://localhost:5000/api/products/${editId}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
+        await api.put(`/api/products/${editId}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
         toast.success('Produk berhasil diperbarui!');
       } else {
-        await axios.post('http://localhost:5000/api/products', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+        await api.post('/api/products', data, { headers: { 'Content-Type': 'multipart/form-data' } });
         toast.success('Produk berhasil ditambahkan!');
       }
       handleCloseModal(); fetchProducts();
@@ -98,7 +98,7 @@ export default function Products() {
   const confirmDelete = async () => {
     if (!deleteId) return;
     try {
-      await axios.delete(`http://localhost:5000/api/products/${deleteId}`);
+      await api.delete(`/api/products/${deleteId}`);
       toast.success('Produk berhasil dihapus!');
       fetchProducts();
     } catch { toast.error('Gagal menghapus produk'); }
@@ -630,7 +630,7 @@ export default function Products() {
                   <tr key={p.id}>
                     <td>
                       {p.image_url
-                        ? <img src={`http://localhost:5000${p.image_url}`} alt={p.name} className="prod-thumb" />
+                        ? <img src={`${API_URL}${p.image_url}`} alt={p.name} className="prod-thumb" />
                         : <div className="prod-thumb-placeholder">☕</div>
                       }
                     </td>
