@@ -2,7 +2,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../api';
 import toast, { Toaster } from 'react-hot-toast';
 
-const TOTAL_TARGET_SECONDS = 26 * 8 * 3600;
+const DEFAULT_SHIFT_SECS = 28800; // fallback 8 jam
+const getEmpTargetSec = (emp) => 26 * (Number(emp.shift_duration_seconds) || DEFAULT_SHIFT_SECS);
+const getShiftHours = (emp) => { const d = Number(emp.shift_duration_seconds) || DEFAULT_SHIFT_SECS; const h = Math.floor(d/3600), m = Math.floor((d%3600)/60); return m > 0 ? `${h}j${m}m` : `${h}j`; };
 
 /* ─── HELPERS ─── */
 const Skeleton = ({ w = '100%', h = 14, r = 8 }) => (
@@ -98,19 +100,21 @@ export default function AdminPayroll() {
   const elapsed = () => (Date.now() - fetchedAtRef.current) / 1000;
   
   const getLiveWorked = (emp) => Number(emp.total_worked_seconds || 0) + (Number(emp.is_active) === 1 ? elapsed() : 0);
-  const getPerSec = (emp) => Number(emp.base_salary || 0) / TOTAL_TARGET_SECONDS;
+  const getPerSec = (emp) => Number(emp.base_salary || 0) / getEmpTargetSec(emp);
   const getLiveSalary = (emp) => getLiveWorked(emp) * getPerSec(emp);
 
   const openProcessModal = (emp) => {
     setSelectedEmp(emp);
+    const empTarget = getEmpTargetSec(emp);
     const base = Number(emp.base_salary || 0), worked = Number(emp.total_worked_seconds || 0);
-    const perSec = base / TOTAL_TARGET_SECONDS, gajiMurni = Math.round(worked * perSec);
-    const missed = Math.max(0, TOTAL_TARGET_SECONDS - worked);
-    const potWaktu = worked < TOTAL_TARGET_SECONDS ? base - gajiMurni : 0;
+    const perSec = base / empTarget, gajiMurni = Math.round(worked * perSec);
+    const missed = Math.max(0, empTarget - worked);
+    const potWaktu = worked < empTarget ? base - gajiMurni : 0;
     const jm = Math.floor(missed / 3600), mm = Math.floor((missed % 3600) / 60);
-    const autoNotes = worked < TOTAL_TARGET_SECONDS
-      ? `Kurang ${jm}j ${mm}m dari target 208 jam. Potongan otomatis: -${formatRp(potWaktu)}.`
-      : 'Jam kerja terpenuhi penuh (≥ 208 jam). Tidak ada potongan.';
+    const targetLabel = `${Math.floor(empTarget/3600)}j`;
+    const autoNotes = worked < empTarget
+      ? `Kurang ${jm}j ${mm}m dari target ${targetLabel}. Potongan otomatis: -${formatRp(potWaktu)}.`
+      : `Jam kerja terpenuhi penuh (≥ ${targetLabel}). Tidak ada potongan.`;
     const savedDed = (emp.deductions != null) ? Number(emp.deductions) : potWaktu;
     setFormData({ bonus: emp.bonus ? Number(emp.bonus) : 0, deductions: savedDed, notes: emp.notes || autoNotes, status: emp.payroll_status || 'pending' });
     setIsModalOpen(true);
@@ -370,12 +374,13 @@ export default function AdminPayroll() {
       {/* ════ MODAL ════ */}
       {isModalOpen && selectedEmp && (() => {
         const [avBg, avFg] = getAvatarColor(selectedEmp.user_id);
+        const empTarget = getEmpTargetSec(selectedEmp);
         const base     = Number(selectedEmp.base_salary || 0);
         const worked   = Number(selectedEmp.total_worked_seconds || 0);
-        const perSec   = base / TOTAL_TARGET_SECONDS;
+        const perSec   = base / empTarget;
         const gajiMurni = Math.round(worked * perSec);
-        const kurang   = Math.max(0, TOTAL_TARGET_SECONDS - worked);
-        const potWaktu = worked < TOTAL_TARGET_SECONDS ? base - gajiMurni : 0;
+        const kurang   = Math.max(0, empTarget - worked);
+        const potWaktu = worked < empTarget ? base - gajiMurni : 0;
         const bon = Number(formData.bonus || 0);
         return (
           <div className="m-overlay" onClick={() => setIsModalOpen(false)}>
@@ -405,7 +410,7 @@ export default function AdminPayroll() {
                   </div>
                   <div className="m-info">
                     <p className="m-info-label">Target Bulan</p>
-                    <p className="m-info-val" style={{ fontSize:13 }}>208j (26×8j)</p>
+                    <p className="m-info-val" style={{ fontSize:13 }}>{Math.floor(empTarget/3600)}j (26×{getShiftHours(selectedEmp)})</p>
                   </div>
                   <div className="m-info">
                     <p className="m-info-label">Gaji Murni</p>
@@ -425,7 +430,7 @@ export default function AdminPayroll() {
                   <div className="m-breakdown">
                     <p className="m-bkd-title"><Icons.Chart /> Rincian Potongan Otomatis</p>
                     <div className="m-bkd-row"><span>Gaji pokok target penuh</span><span className="neu">{formatRp(base)}</span></div>
-                    <div className="m-bkd-row"><span>Kurang jam kerja</span><span className="neg">−{formatDurShort(kurang)} ({((kurang/TOTAL_TARGET_SECONDS)*100).toFixed(1)}%)</span></div>
+                    <div className="m-bkd-row"><span>Kurang jam kerja</span><span className="neg">−{formatDurShort(kurang)} ({((kurang/empTarget)*100).toFixed(1)}%)</span></div>
                     <div className="m-bkd-row"><span>Potongan waktu</span><span className="neg">−{formatRp(potWaktu)}</span></div>
                     {bon > 0 && <div className="m-bkd-row"><span>Bonus / Lembur</span><span className="pos">+{formatRp(bon)}</span></div>}
                     <div className="m-bkd-row total"><span>Estimasi Gaji Bersih</span><span className="pos">{formatRp(gajiMurni + bon)}</span></div>
@@ -599,9 +604,10 @@ export default function AdminPayroll() {
                     const liveSal       = getLiveSalary(emp);
                     const perSec        = getPerSec(emp);
                     const base          = Number(emp.base_salary || 0);
-                    const potWaktu      = liveWorked < TOTAL_TARGET_SECONDS ? base - liveSal : 0;
-                    const progress      = Math.min(100, (liveWorked / TOTAL_TARGET_SECONDS) * 100);
-                    const kurang        = Math.max(0, TOTAL_TARGET_SECONDS - liveWorked);
+                    const empTarget     = getEmpTargetSec(emp);
+                    const potWaktu      = liveWorked < empTarget ? base - liveSal : 0;
+                    const progress      = Math.min(100, (liveWorked / empTarget) * 100);
+                    const kurang        = Math.max(0, empTarget - liveWorked);
                     const isProcessed   = !!emp.payroll_id;
 
                     return (
@@ -620,7 +626,7 @@ export default function AdminPayroll() {
 
                         <td>
                           <p className="dur-main">{formatDur(liveWorked)}</p>
-                          <p className="dur-pct">{progress.toFixed(1)}% dari 208j</p>
+                          <p className="dur-pct">{progress.toFixed(1)}% dari {Math.floor(empTarget/3600)}j</p>
                           <div className="dur-bar">
                             <div className={`dur-fill ${progress >= 100 ? 'full' : ''}`} style={{ width:`${progress}%` }} />
                           </div>
@@ -659,7 +665,7 @@ export default function AdminPayroll() {
                           ) : (
                             <div className="ded-box">
                               <p className="ded-amount">−{formatRp(potWaktu)}</p>
-                              <p className="ded-info">Kurang {formatDurShort(kurang)}<br/>{((kurang/TOTAL_TARGET_SECONDS)*100).toFixed(1)}% dari target</p>
+                              <p className="ded-info">Kurang {formatDurShort(kurang)}<br/>{((kurang/empTarget)*100).toFixed(1)}% dari target</p>
                               <div className="ded-bar">
                                 <div className="ded-fill" style={{ width:`${Math.min(100,(potWaktu/base)*100)}%` }} />
                               </div>

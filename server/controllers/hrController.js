@@ -292,14 +292,24 @@ const getPayrollReport = async (req, res) => {
         const query = `
             SELECT 
                 u.id as user_id, u.name, u.base_salary,
-                s.name as shift_name, -- MENGAMBIL NAMA SHIFT
-                MAX(CASE WHEN a.clock_out IS NULL AND a.clock_in IS NOT NULL THEN 1 ELSE 0 END) as is_active, -- MENDETEKSI SIAPA YANG SEDANG KERJA DETIK INI
+                s.name as shift_name, s.start_time, s.end_time,
+                -- Durasi shift dalam detik (handle overnight: end < start)
+                CASE 
+                    WHEN s.end_time > s.start_time 
+                    THEN EXTRACT(EPOCH FROM (s.end_time - s.start_time))
+                    ELSE EXTRACT(EPOCH FROM (s.end_time - s.start_time + INTERVAL '24 hours'))
+                END as shift_duration_seconds,
+                MAX(CASE WHEN a.clock_out IS NULL AND a.clock_in IS NOT NULL THEN 1 ELSE 0 END) as is_active,
                 COUNT(a.id) as present_days,
                 SUM(CASE WHEN a.status = 'late' THEN 1 ELSE 0 END) as late_days,
                 COALESCE(SUM(
                     LEAST(
                         EXTRACT(EPOCH FROM (COALESCE(a.clock_out, CURRENT_TIMESTAMP) - a.clock_in)),
-                        28800
+                        CASE 
+                            WHEN s.end_time > s.start_time 
+                            THEN EXTRACT(EPOCH FROM (s.end_time - s.start_time))
+                            ELSE EXTRACT(EPOCH FROM (s.end_time - s.start_time + INTERVAL '24 hours'))
+                        END
                     )
                 ), 0) as total_worked_seconds,
                 p.id as payroll_id, p.bonus, p.deductions, p.net_salary, p.status as payroll_status, p.notes
@@ -308,7 +318,7 @@ const getPayrollReport = async (req, res) => {
             LEFT JOIN attendances a ON u.id = a.user_id AND TO_CHAR(a.date, 'YYYY-MM') = $1 AND a.status IN ('ontime', 'late')
             LEFT JOIN payrolls p ON u.id = p.user_id AND p.period_month = $1
             WHERE u.shift_id IS NOT NULL
-            GROUP BY u.id, u.name, u.base_salary, s.name, p.id, p.bonus, p.deductions, p.net_salary, p.status, p.notes
+            GROUP BY u.id, u.name, u.base_salary, s.name, s.start_time, s.end_time, p.id, p.bonus, p.deductions, p.net_salary, p.status, p.notes
             ORDER BY u.name ASC
         `;
         const result = await pool.query(query, [month]);
