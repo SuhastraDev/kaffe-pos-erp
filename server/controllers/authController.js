@@ -1,6 +1,6 @@
 // File: server/controllers/authController.js
 const pool = require('../db/pool');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 // Fungsi Register (Untuk membuat akun pertama)

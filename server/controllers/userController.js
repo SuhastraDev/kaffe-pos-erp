@@ -1,6 +1,6 @@
 // File: server/controllers/userController.js
 const pool = require('../db/pool');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 // GET Semua User (Kecuali password agar aman)
 const getUsers = async (req, res) => {
