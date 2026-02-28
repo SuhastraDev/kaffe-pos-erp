@@ -30,6 +30,7 @@ export default function AdminShifts() {
   const [isLoading, setIsLoading]     = useState(false);
   const [searchTerm, setSearchTerm]   = useState('');
   const [formData, setFormData]       = useState({ name: '', start_time: '', end_time: '' });
+  const [editingShift, setEditingShift] = useState(null); // null = tambah baru, object = edit
 
   useEffect(() => { fetchShifts(); }, []);
 
@@ -49,15 +50,42 @@ export default function AdminShifts() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await api.post('/api/hr/shifts', formData);
-      toast.success('Shift baru berhasil ditambahkan!');
+      if (editingShift) {
+        await api.put(`/api/hr/shifts/${editingShift.id}`, formData);
+        toast.success('Shift berhasil diperbarui!');
+      } else {
+        await api.post('/api/hr/shifts', formData);
+        toast.success('Shift baru berhasil ditambahkan!');
+      }
       setFormData({ name: '', start_time: '', end_time: '' });
+      setEditingShift(null);
       setIsModalOpen(false);
       fetchShifts();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Gagal menyimpan shift');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleEdit = (shift) => {
+    setEditingShift(shift);
+    setFormData({
+      name: shift.name,
+      start_time: shift.start_time?.slice(0, 5) || '',
+      end_time: shift.end_time?.slice(0, 5) || '',
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleDelete = async (shift) => {
+    if (!window.confirm(`Yakin ingin menghapus shift "${shift.name}"?\n\nSemua karyawan yang memakai shift ini akan dilepas dari jadwal.`)) return;
+    try {
+      await api.delete(`/api/hr/shifts/${shift.id}`);
+      toast.success('Shift berhasil dihapus!');
+      fetchShifts();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Gagal menghapus shift');
     }
   };
 
@@ -259,6 +287,21 @@ export default function AdminShifts() {
         .btn-save:hover    { opacity:0.88; }
         .btn-save:disabled { opacity:0.5; cursor:not-allowed; }
         .btn-save svg { width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; }
+
+        /* ── action buttons ── */
+        .actions-cell { display:flex; align-items:center; gap:6px; }
+        .btn-action {
+          width:34px; height:34px; border-radius:9px; border:none;
+          display:flex; align-items:center; justify-content:center;
+          cursor:pointer; transition:all 0.2s;
+        }
+        .btn-action svg { width:14px; height:14px; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+        .btn-edit { background:rgba(37,99,235,0.1); }
+        .btn-edit svg { stroke:#2563eb; }
+        .btn-edit:hover { background:rgba(37,99,235,0.2); }
+        .btn-delete { background:rgba(192,57,43,0.1); }
+        .btn-delete svg { stroke:#c0392b; }
+        .btn-delete:hover { background:rgba(192,57,43,0.2); }
       `}</style>
 
       <div className="shift-root">
@@ -266,7 +309,7 @@ export default function AdminShifts() {
 
         {/* ── MODAL ── */}
         {isModalOpen && (
-          <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
+          <div className="modal-overlay" onClick={() => { setIsModalOpen(false); setEditingShift(null); }}>
             <div className="modal-box" onClick={e => e.stopPropagation()}>
               <div className="modal-top">
                 <div className="modal-top-left">
@@ -274,11 +317,11 @@ export default function AdminShifts() {
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                   </div>
                   <div>
-                    <p className="modal-title">Tambah Shift Baru</p>
-                    <p className="modal-sub">Atur nama dan jam kerja shift</p>
+                    <p className="modal-title">{editingShift ? 'Edit Shift' : 'Tambah Shift Baru'}</p>
+                    <p className="modal-sub">{editingShift ? 'Perbarui nama dan jam kerja shift' : 'Atur nama dan jam kerja shift'}</p>
                   </div>
                 </div>
-                <button className="modal-close" onClick={() => setIsModalOpen(false)}>✕</button>
+                <button className="modal-close" onClick={() => { setIsModalOpen(false); setEditingShift(null); }}>✕</button>
               </div>
 
               <div className="modal-body">
@@ -320,7 +363,7 @@ export default function AdminShifts() {
                   )}
 
                   <div className="modal-footer">
-                    <button type="button" className="btn-cancel" onClick={() => setIsModalOpen(false)}>Batal</button>
+                    <button type="button" className="btn-cancel" onClick={() => { setIsModalOpen(false); setEditingShift(null); }}>Batal</button>
                     <button type="submit" disabled={isLoading} className="btn-save">
                       {isLoading ? (
                         <>
@@ -332,7 +375,7 @@ export default function AdminShifts() {
                       ) : (
                         <>
                           <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                          Simpan Shift
+                          {editingShift ? 'Perbarui' : 'Simpan Shift'}
                         </>
                       )}
                     </button>
@@ -393,7 +436,7 @@ export default function AdminShifts() {
           </div>
           <button
             className="btn-add"
-            onClick={() => { setFormData({ name:'', start_time:'', end_time:'' }); setIsModalOpen(true); }}
+            onClick={() => { setEditingShift(null); setFormData({ name:'', start_time:'', end_time:'' }); setIsModalOpen(true); }}
           >
             <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Tambah Shift
@@ -419,6 +462,7 @@ export default function AdminShifts() {
                   <th>Jam Masuk</th>
                   <th>Jam Pulang</th>
                   <th>Durasi</th>
+                  <th>Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -435,11 +479,12 @@ export default function AdminShifts() {
                       <td><Skeleton w={80} h={24} r={20} /></td>
                       <td><Skeleton w={80} h={24} r={20} /></td>
                       <td><Skeleton w={55} h={13} /></td>
+                      <td><Skeleton w={74} h={34} r={9} /></td>
                     </tr>
                   ))
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="empty-cell">
+                    <td colSpan="6" className="empty-cell">
                       <div className="empty-icon">🕐</div>
                       <p className="empty-text">
                         {searchTerm ? 'Shift tidak ditemukan' : 'Belum ada data shift'}
@@ -475,6 +520,16 @@ export default function AdminShifts() {
                       </td>
                       <td>
                         <span className="duration-text">{getDuration(shift.start_time, shift.end_time)}</span>
+                      </td>
+                      <td>
+                        <div className="actions-cell">
+                          <button className="btn-action btn-edit" title="Edit" onClick={() => handleEdit(shift)}>
+                            <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                          </button>
+                          <button className="btn-action btn-delete" title="Hapus" onClick={() => handleDelete(shift)}>
+                            <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

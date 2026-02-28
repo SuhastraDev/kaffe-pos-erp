@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { getShifts, createShift, clockIn, clockOut, checkTodayAttendance, getEmployees, updateEmployeeHr, getPayrollReport, savePayroll, submitLeave, getMyStats, getAllAttendanceHistory } = require('../controllers/hrController');
+const { getShifts, createShift, updateShift, deleteShift, clockIn, clockOut, checkTodayAttendance, getEmployees, updateEmployeeHr, getPayrollReport, savePayroll, submitLeave, getMyStats, getAllAttendanceHistory } = require('../controllers/hrController');
 
 // Route untuk Shift
 router.get('/shifts', getShifts);
 router.post('/shifts', createShift);
+router.put('/shifts/:id', updateShift);
+router.delete('/shifts/:id', deleteShift);
 
 // Route untuk Absensi
 router.post('/attendance/clock-in', clockIn);

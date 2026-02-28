@@ -7,6 +7,22 @@ const formatLocalDate = (d) => {
     return `${year}-${month}-${day}`;
 };
 
+// Helper: Dapatkan waktu sekarang dalam timezone Indonesia (WIB UTC+7)
+const getNowWIB = () => {
+    const now = new Date();
+    // Konversi ke WIB (UTC+7)
+    const wib = new Date(now.getTime() + (7 * 60 * 60 * 1000) + (now.getTimezoneOffset() * 60 * 1000));
+    return wib;
+};
+
+// Helper: Buat Date object dari tanggal + waktu WIB
+const makeWIBDate = (dateStr, timeStr) => {
+    // dateStr: "2026-02-28", timeStr: "08:20:00" atau "08:20"
+    const t = timeStr.length === 5 ? timeStr + ':00' : timeStr;
+    const d = new Date(`${dateStr}T${t}+07:00`);
+    return d;
+};
+
 // ==========================================
 // 1. MANAJEMEN SHIFT
 // ==========================================
@@ -32,6 +48,35 @@ const createShift = async (req, res) => {
     }
 };
 
+const updateShift = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, start_time, end_time } = req.body;
+        const result = await pool.query(
+            'UPDATE shifts SET name = $1, start_time = $2, end_time = $3 WHERE id = $4 RETURNING *',
+            [name, start_time, end_time, id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ message: 'Shift tidak ditemukan' });
+        res.json({ message: 'Shift berhasil diperbarui', data: result.rows[0] });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const deleteShift = async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Set shift_id = NULL untuk semua user yang memakai shift ini
+        await pool.query('UPDATE users SET shift_id = NULL WHERE shift_id = $1', [id]);
+        // Hapus shift
+        const result = await pool.query('DELETE FROM shifts WHERE id = $1 RETURNING *', [id]);
+        if (result.rows.length === 0) return res.status(404).json({ message: 'Shift tidak ditemukan' });
+        res.json({ message: 'Shift berhasil dihapus. Karyawan terkait sudah dilepas dari shift ini.' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 // ==========================================
 // 2. MANAJEMEN ABSENSI (ATTENDANCE)
 // ==========================================
@@ -39,7 +84,8 @@ const clockIn = async (req, res) => {
     try {
         const { user_id } = req.body;
         const now = new Date();
-        const todayStr = formatLocalDate(now);
+        const nowWIB = getNowWIB();
+        const todayStr = formatLocalDate(nowWIB);
 
         const userQuery = await pool.query(
             'SELECT u.shift_id, s.start_time, s.end_time FROM users u LEFT JOIN shifts s ON u.shift_id = s.id WHERE u.id = $1', 
@@ -49,17 +95,19 @@ const clockIn = async (req, res) => {
         if (userQuery.rows.length === 0) return res.status(404).json({ message: 'User tidak ditemukan' });
         if (!userQuery.rows[0].shift_id) return res.status(400).json({ message: 'Anda belum memiliki jadwal Shift.' });
 
-        const shiftStartTime = userQuery.rows[0].start_time;
+        const shiftStartTime = userQuery.rows[0].start_time; // "08:20:00"
         const shiftEndTime = userQuery.rows[0].end_time;
         
-        let shiftStart = new Date(`${todayStr}T${shiftStartTime}`);
-        let shiftEnd = new Date(`${todayStr}T${shiftEndTime}`);
+        // Buat Date objects dalam WIB timezone
+        let shiftStart = makeWIBDate(todayStr, shiftStartTime);
+        let shiftEnd = makeWIBDate(todayStr, shiftEndTime);
         
-        if (shiftEndTime < shiftStartTime) {
-            if (now.getHours() < 12) {
-                shiftStart.setDate(shiftStart.getDate() - 1);
+        // Handle shift melewati tengah malam
+        if (shiftEnd <= shiftStart) {
+            if (nowWIB.getHours() < 12) {
+                shiftStart = new Date(shiftStart.getTime() - 24 * 60 * 60 * 1000);
             } else {
-                shiftEnd.setDate(shiftEnd.getDate() + 1);
+                shiftEnd = new Date(shiftEnd.getTime() + 24 * 60 * 60 * 1000);
             }
         }
         
@@ -76,7 +124,7 @@ const clockIn = async (req, res) => {
             lateSeconds = Math.floor((now - shiftStart) / 1000);
         }
 
-        const shiftDateStr = formatLocalDate(shiftStart);
+        const shiftDateStr = formatLocalDate(nowWIB);
 
         const result = await pool.query(
             'INSERT INTO attendances (user_id, date, clock_in, status, late_seconds) VALUES ($1, $2, $3, $4, $5) RETURNING *',
@@ -94,6 +142,7 @@ const clockOut = async (req, res) => {
     try {
         const { user_id } = req.body;
         const now = new Date();
+        const nowWIB = getNowWIB();
 
         // Ambil data shift user untuk cap waktu clock_out
         const userQuery = await pool.query(
@@ -105,19 +154,19 @@ const clockOut = async (req, res) => {
 
         // Jika user punya shift, cap clock_out di waktu shift berakhir
         if (userQuery.rows.length > 0 && userQuery.rows[0].end_time) {
-            const todayStr = formatLocalDate(now);
+            const todayStr = formatLocalDate(nowWIB);
             const shiftStartTime = userQuery.rows[0].start_time;
             const shiftEndTime = userQuery.rows[0].end_time;
 
-            let shiftEnd = new Date(`${todayStr}T${shiftEndTime}`);
-            let shiftStart = new Date(`${todayStr}T${shiftStartTime}`);
+            let shiftEnd = makeWIBDate(todayStr, shiftEndTime);
+            let shiftStart = makeWIBDate(todayStr, shiftStartTime);
 
             // Handle shift yang melewati tengah malam
-            if (shiftEndTime < shiftStartTime) {
-                if (now.getHours() < 12) {
-                    shiftStart.setDate(shiftStart.getDate() - 1);
+            if (shiftEnd <= shiftStart) {
+                if (nowWIB.getHours() < 12) {
+                    shiftStart = new Date(shiftStart.getTime() - 24 * 60 * 60 * 1000);
                 } else {
-                    shiftEnd.setDate(shiftEnd.getDate() + 1);
+                    shiftEnd = new Date(shiftEnd.getTime() + 24 * 60 * 60 * 1000);
                 }
             }
 
@@ -151,7 +200,8 @@ const checkTodayAttendance = async (req, res) => {
         
         if(result.rows.length > 0) {
             const lastAbsen = result.rows[0];
-            const today = formatLocalDate(new Date());
+            const nowWIB = getNowWIB();
+            const today = formatLocalDate(nowWIB);
             const absenDate = formatLocalDate(new Date(lastAbsen.date));
             
             // Auto-close: jika masih terbuka dan shift sudah berakhir
@@ -165,9 +215,10 @@ const checkTodayAttendance = async (req, res) => {
                     const shiftStartTime = userQuery.rows[0].start_time;
                     const shiftEndTime = userQuery.rows[0].end_time;
                     const clockDate = formatLocalDate(new Date(lastAbsen.date));
-                    let shiftEnd = new Date(`${clockDate}T${shiftEndTime}`);
-                    if (shiftEndTime < shiftStartTime) {
-                        shiftEnd.setDate(shiftEnd.getDate() + 1);
+                    let shiftEnd = makeWIBDate(clockDate, shiftEndTime);
+                    let shiftStart = makeWIBDate(clockDate, shiftStartTime);
+                    if (shiftEnd <= shiftStart) {
+                        shiftEnd = new Date(shiftEnd.getTime() + 24 * 60 * 60 * 1000);
                     }
                     // Jika sekarang sudah lewat shift end, auto-close attendance
                     if (now > shiftEnd) {
@@ -359,4 +410,4 @@ const getAllAttendanceHistory = async (req, res) => {
     }
 };
 
-module.exports = { getShifts, createShift, clockIn, clockOut, checkTodayAttendance, getEmployees, updateEmployeeHr, getPayrollReport, savePayroll, submitLeave, getMyStats, getAllAttendanceHistory };
+module.exports = { getShifts, createShift, updateShift, deleteShift, clockIn, clockOut, checkTodayAttendance, getEmployees, updateEmployeeHr, getPayrollReport, savePayroll, submitLeave, getMyStats, getAllAttendanceHistory };
