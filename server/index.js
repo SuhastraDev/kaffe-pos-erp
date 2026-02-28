@@ -59,6 +59,42 @@ app.get('/', (req, res) => {
     res.send('Server POS API Berjalan!');
 });
 
+// Debug endpoint (hapus setelah fix)
+app.get('/api/debug', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT NOW()');
+        const tables = await pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
+        res.json({
+            db_connected: true,
+            server_time: result.rows[0].now,
+            tables: tables.rows.map(r => r.table_name),
+            env: {
+                NODE_ENV: process.env.NODE_ENV || 'not set',
+                DB_HOST: process.env.DB_HOST ? '✅ set' : '❌ missing',
+                DB_USER: process.env.DB_USER ? '✅ set' : '❌ missing',
+                DB_NAME: process.env.DB_NAME ? '✅ set' : '❌ missing',
+                DB_PASSWORD: process.env.DB_PASSWORD ? '✅ set' : '❌ missing',
+                DB_PORT: process.env.DB_PORT ? '✅ set' : '❌ missing',
+                JWT_SECRET: process.env.JWT_SECRET ? '✅ set' : '❌ missing',
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            db_connected: false,
+            error: error.message,
+            env: {
+                NODE_ENV: process.env.NODE_ENV || 'not set',
+                DB_HOST: process.env.DB_HOST ? '✅ set' : '❌ missing',
+                DB_USER: process.env.DB_USER ? '✅ set' : '❌ missing',
+                DB_NAME: process.env.DB_NAME ? '✅ set' : '❌ missing',
+                DB_PASSWORD: process.env.DB_PASSWORD ? '✅ set' : '❌ missing',
+                DB_PORT: process.env.DB_PORT ? '✅ set' : '❌ missing',
+                JWT_SECRET: process.env.JWT_SECRET ? '✅ set' : '❌ missing',
+            }
+        });
+    }
+});
+
 const PORT = process.env.PORT || 5000;
 
 if (process.env.NODE_ENV !== 'production') {
