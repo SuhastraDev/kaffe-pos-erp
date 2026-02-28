@@ -149,6 +149,46 @@ export default function Login() {
           box-shadow: 0 8px 20px rgba(26,15,10,0.2); color: var(--white);
         }
         .btn-submit:disabled { opacity: 0.65; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* Demo Accounts */
+        .demo-section {
+          margin-top: 24px; padding-top: 20px;
+          border-top: 1px dashed rgba(200,169,126,0.3);
+        }
+        .demo-title {
+          font-size: 11px; font-weight: 700; color: var(--text-dim);
+          text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 12px;
+          text-align: center;
+        }
+        .demo-grid { display: flex; flex-direction: column; gap: 6px; }
+        .demo-card {
+          display: flex; align-items: center; gap: 10px;
+          padding: 10px 14px; border-radius: 10px;
+          background: var(--foam); border: 1px solid var(--milk);
+          cursor: pointer; transition: all 0.2s;
+          font-family: 'DM Sans', sans-serif;
+        }
+        .demo-card:hover {
+          background: var(--milk); border-color: var(--crema);
+          transform: translateX(3px);
+        }
+        .demo-avatar {
+          width: 30px; height: 30px; border-radius: 8px;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 13px; font-weight: 800; flex-shrink: 0;
+        }
+        .demo-avatar.admin { background: rgba(201,123,58,0.15); color: var(--accent); }
+        .demo-avatar.kasir { background: rgba(39,174,96,0.12); color: #1a7a4a; }
+        .demo-info { flex: 1; min-width: 0; }
+        .demo-name { font-size: 12px; font-weight: 700; color: var(--roast); }
+        .demo-email { font-size: 11px; color: var(--text-dim); }
+        .demo-role {
+          font-size: 9px; font-weight: 700; padding: 2px 8px;
+          border-radius: 20px; text-transform: uppercase; letter-spacing: 0.08em;
+          flex-shrink: 0;
+        }
+        .demo-role.admin { background: rgba(201,123,58,0.12); color: var(--accent); }
+        .demo-role.kasir { background: rgba(39,174,96,0.1); color: #1a7a4a; }
       `}</style>
 
       <div className="login-root">
@@ -206,6 +246,28 @@ export default function Login() {
                 )}
               </button>
             </form>
+
+            {/* Demo Accounts */}
+            <div className="demo-section">
+              <p className="demo-title">Akun Demo — Klik untuk login</p>
+              <div className="demo-grid">
+                {[
+                  { name: 'Admin', email: 'admin@kafe.com', password: 'password', role: 'admin' },
+                  { name: 'Indra', email: 'indra@kafe.com', password: 'password', role: 'kasir' },
+                  { name: 'Raden', email: 'raden@kafe.com', password: 'password', role: 'kasir' },
+                  { name: 'Kasir', email: 'kasir@kafe.com', password: 'password', role: 'kasir' },
+                ].map((acc) => (
+                  <div key={acc.email} className="demo-card" onClick={() => { setEmail(acc.email); setPassword(acc.password); }}>
+                    <div className={`demo-avatar ${acc.role}`}>{acc.name[0]}</div>
+                    <div className="demo-info">
+                      <p className="demo-name">{acc.name}</p>
+                      <p className="demo-email">{acc.email}</p>
+                    </div>
+                    <span className={`demo-role ${acc.role}`}>{acc.role}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>

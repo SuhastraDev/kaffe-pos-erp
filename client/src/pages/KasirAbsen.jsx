@@ -33,8 +33,6 @@ const IconPause  = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentCol
 const IconPlay   = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>;
 const IconAlert  = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>;
 
-const TOTAL_TARGET_SECONDS = 26 * 8 * 3600;
-
 export default function KasirAbsen() {
   const user = JSON.parse(localStorage.getItem('user') || '{"id":1,"name":"Kasir","role":"kasir"}');
   const [stats, setStats]       = useState(null);
@@ -63,9 +61,23 @@ export default function KasirAbsen() {
   }, [user.id]);
 
   // Determine if salary is actively ticking
-  const isLive = stats?.attendance_history?.some(
-    l => l.clock_in && !l.clock_out && (l.status === 'ontime' || l.status === 'late')
-  );
+  // Cek: masih clock_in, belum clock_out, DAN masih dalam jam shift
+  const isLive = (() => {
+    if (!stats?.attendance_history?.some(
+      l => l.clock_in && !l.clock_out && (l.status === 'ontime' || l.status === 'late')
+    )) return false;
+
+    // Cek apakah masih dalam jam shift
+    if (stats?.shift?.start_time && stats?.shift?.end_time) {
+      const now = new Date();
+      const todayStr = now.toISOString().split('T')[0];
+      let shiftEnd = new Date(`${todayStr}T${stats.shift.end_time}`);
+      const shiftStart = new Date(`${todayStr}T${stats.shift.start_time}`);
+      if (shiftEnd <= shiftStart) shiftEnd.setDate(shiftEnd.getDate() + 1);
+      if (now > shiftEnd) return false; // Shift sudah berakhir
+    }
+    return true;
+  })();
 
   // Local tick every second only when live
   useEffect(() => {
@@ -79,8 +91,22 @@ export default function KasirAbsen() {
   }, [isLive, stats]);
 
   const baseSalary  = Number(stats?.shift?.base_salary || 0);
-  const liveSalary  = Math.round(localWorked * (baseSalary / TOTAL_TARGET_SECONDS));
-  const progressPct = Math.min((localWorked / TOTAL_TARGET_SECONDS) * 100, 100);
+
+  // Hitung durasi shift per hari (dalam detik)
+  const shiftDurationPerDay = (() => {
+    if (stats?.shift?.start_time && stats?.shift?.end_time) {
+      const today = new Date().toISOString().split('T')[0];
+      let sStart = new Date(`${today}T${stats.shift.start_time}`);
+      let sEnd = new Date(`${today}T${stats.shift.end_time}`);
+      if (sEnd <= sStart) sEnd.setDate(sEnd.getDate() + 1);
+      return Math.floor((sEnd - sStart) / 1000);
+    }
+    return 8 * 3600; // default 8 jam
+  })();
+  const totalTargetSeconds = 26 * shiftDurationPerDay;
+
+  const liveSalary  = Math.round(localWorked * (baseSalary / totalTargetSeconds));
+  const progressPct = Math.min((localWorked / totalTargetSeconds) * 100, 100);
 
   return (
     <>
@@ -405,7 +431,7 @@ export default function KasirAbsen() {
               <div className="hero-sub">
                 <span>Terkumpul dari durasi kerja</span>
                 <span className="hero-dur">{formatDuration(localWorked)}</span>
-                <span>dari target 208 jam</span>
+                <span>dari target {Math.round(totalTargetSeconds / 3600)} jam</span>
               </div>
 
               {!isLive && (

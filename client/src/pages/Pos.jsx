@@ -45,6 +45,17 @@ export default function Pos() {
       }
     };
     fetchInitialData();
+
+    // Auto-refresh attendance setiap 30 detik untuk auto-lock saat shift berakhir
+    const refreshInterval = setInterval(async () => {
+      if (user?.id) {
+        try {
+          const absRes = await api.get(`/api/hr/attendance/today/${user.id}`);
+          setAttendance(absRes.data);
+        } catch {}
+      }
+    }, 30000);
+    return () => clearInterval(refreshInterval);
   }, [user.id]);
 
   useEffect(() => {
@@ -126,7 +137,7 @@ export default function Pos() {
   const subtotal     = cart.reduce((s, i) => s + Number(i.subtotal), 0);
   const total        = subtotal;
   const changeAmount = amountPaid ? Number(amountPaid) - total : 0;
-  const isPosLocked  = !attendance || attendance.status === 'leave' || attendance.status === 'sick';
+  const isPosLocked  = !attendance || attendance.clock_out || attendance.status === 'leave' || attendance.status === 'sick';
 
   const handleCheckoutClick = (e) => {
     e.preventDefault();
@@ -727,12 +738,17 @@ export default function Pos() {
                 <h2 className="blocker-title">
                   {attendance?.status === 'sick' ? 'Anda Sedang Sakit'
                   : attendance?.status === 'leave' ? 'Anda Sedang Izin'
+                  : attendance?.clock_out ? 'Shift Telah Selesai'
                   : 'Mesin Kasir Terkunci'}
                 </h2>
                 {attendance && (attendance.status === 'leave' || attendance.status === 'sick') ? (
                   <p className="blocker-desc">
                     Anda tercatat <strong>{attendance.status === 'sick' ? 'SAKIT' : 'IZIN'}</strong> hari ini.
                     Silakan beristirahat dan pulih.
+                  </p>
+                ) : attendance?.clock_out ? (
+                  <p className="blocker-desc">
+                    Anda sudah <strong>Absen Pulang</strong>. Shift hari ini telah selesai. Mesin kasir terkunci sampai shift berikutnya.
                   </p>
                 ) : (
                   <>

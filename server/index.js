@@ -1,12 +1,10 @@
 // File: server/index.js
-let app;
-try {
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const pool = require('./db/pool');
 
-app = express();
+const app = express();
 
 // Middleware
 app.use((req, res, next) => {
@@ -55,60 +53,11 @@ app.get('/', (req, res) => {
     res.send('Server POS API Berjalan!');
 });
 
-// Debug endpoint
-app.get('/api/debug', async (req, res) => {
-    try {
-        const result = await pool.query('SELECT NOW()');
-        const tables = await pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
-        res.json({
-            db_connected: true,
-            server_time: result.rows[0].now,
-            tables: tables.rows.map(r => r.table_name),
-            env: {
-                NODE_ENV: process.env.NODE_ENV || 'not set',
-                DB_HOST: process.env.DB_HOST ? 'set' : 'missing',
-                DB_USER: process.env.DB_USER ? 'set' : 'missing',
-                DB_NAME: process.env.DB_NAME ? 'set' : 'missing',
-                DB_PASSWORD: process.env.DB_PASSWORD ? 'set' : 'missing',
-                DB_PORT: process.env.DB_PORT ? 'set' : 'missing',
-                JWT_SECRET: process.env.JWT_SECRET ? 'set' : 'missing',
-            }
-        });
-    } catch (error) {
-        res.status(500).json({
-            db_connected: false,
-            error: error.message,
-            env: {
-                NODE_ENV: process.env.NODE_ENV || 'not set',
-                DB_HOST: process.env.DB_HOST ? 'set' : 'missing',
-                DB_USER: process.env.DB_USER ? 'set' : 'missing',
-                DB_NAME: process.env.DB_NAME ? 'set' : 'missing',
-                DB_PASSWORD: process.env.DB_PASSWORD ? 'set' : 'missing',
-                DB_PORT: process.env.DB_PORT ? 'set' : 'missing',
-                JWT_SECRET: process.env.JWT_SECRET ? 'set' : 'missing',
-            }
-        });
-    }
-});
-
 const PORT = process.env.PORT || 5000;
 
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, () => {
     console.log(`🚀 Server berjalan di http://localhost:${PORT}`);
-  });
-}
-
-} catch (startupError) {
-  // Jika ada error saat startup, buat app minimal yang menampilkan error
-  const express = require('express');
-  app = express();
-  app.use((req, res) => {
-    res.status(500).json({
-      crash: true,
-      error: startupError.message,
-      stack: startupError.stack,
-    });
   });
 }
 

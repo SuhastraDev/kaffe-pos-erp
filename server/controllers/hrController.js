@@ -95,11 +95,43 @@ const clockOut = async (req, res) => {
         const { user_id } = req.body;
         const now = new Date();
 
+        // Ambil data shift user untuk cap waktu clock_out
+        const userQuery = await pool.query(
+            'SELECT u.shift_id, s.start_time, s.end_time FROM users u LEFT JOIN shifts s ON u.shift_id = s.id WHERE u.id = $1',
+            [user_id]
+        );
+
+        let clockOutTime = now;
+
+        // Jika user punya shift, cap clock_out di waktu shift berakhir
+        if (userQuery.rows.length > 0 && userQuery.rows[0].end_time) {
+            const todayStr = formatLocalDate(now);
+            const shiftStartTime = userQuery.rows[0].start_time;
+            const shiftEndTime = userQuery.rows[0].end_time;
+
+            let shiftEnd = new Date(`${todayStr}T${shiftEndTime}`);
+            let shiftStart = new Date(`${todayStr}T${shiftStartTime}`);
+
+            // Handle shift yang melewati tengah malam
+            if (shiftEndTime < shiftStartTime) {
+                if (now.getHours() < 12) {
+                    shiftStart.setDate(shiftStart.getDate() - 1);
+                } else {
+                    shiftEnd.setDate(shiftEnd.getDate() + 1);
+                }
+            }
+
+            // Cap: jika clock out setelah shift berakhir, gunakan waktu shift end
+            if (now > shiftEnd) {
+                clockOutTime = shiftEnd;
+            }
+        }
+
         const result = await pool.query(
             `UPDATE attendances SET clock_out = $1 
              WHERE id = (SELECT id FROM attendances WHERE user_id = $2 AND clock_out IS NULL ORDER BY clock_in DESC LIMIT 1) 
              RETURNING *`,
-            [now, user_id]
+            [clockOutTime, user_id]
         );
 
         if (result.rows.length === 0) return res.status(400).json({ message: 'Anda belum absen masuk atau sudah absen pulang' });
@@ -121,6 +153,32 @@ const checkTodayAttendance = async (req, res) => {
             const lastAbsen = result.rows[0];
             const today = formatLocalDate(new Date());
             const absenDate = formatLocalDate(new Date(lastAbsen.date));
+            
+            // Auto-close: jika masih terbuka dan shift sudah berakhir
+            if (lastAbsen.clock_in && !lastAbsen.clock_out) {
+                const userQuery = await pool.query(
+                    'SELECT s.start_time, s.end_time FROM users u LEFT JOIN shifts s ON u.shift_id = s.id WHERE u.id = $1',
+                    [user_id]
+                );
+                if (userQuery.rows.length > 0 && userQuery.rows[0].end_time) {
+                    const now = new Date();
+                    const shiftStartTime = userQuery.rows[0].start_time;
+                    const shiftEndTime = userQuery.rows[0].end_time;
+                    const clockDate = formatLocalDate(new Date(lastAbsen.date));
+                    let shiftEnd = new Date(`${clockDate}T${shiftEndTime}`);
+                    if (shiftEndTime < shiftStartTime) {
+                        shiftEnd.setDate(shiftEnd.getDate() + 1);
+                    }
+                    // Jika sekarang sudah lewat shift end, auto-close attendance
+                    if (now > shiftEnd) {
+                        await pool.query(
+                            'UPDATE attendances SET clock_out = $1 WHERE id = $2',
+                            [shiftEnd, lastAbsen.id]
+                        );
+                        lastAbsen.clock_out = shiftEnd;
+                    }
+                }
+            }
             
             if(absenDate === today || lastAbsen.clock_out === null) {
                 return res.json(lastAbsen);
@@ -230,7 +288,7 @@ const savePayroll = async (req, res) => {
     }
 };
 
-// --- AUTO-CUTOFF JUGA DITERAPKAN DI BANNER KASIR ---
+// --- AUTO-CUTOFF: Gaji dihitung berdasarkan durasi shift, bukan terus berjalan ---
 const getMyStats = async (req, res) => {
     try {
         const { user_id } = req.params;
@@ -238,16 +296,30 @@ const getMyStats = async (req, res) => {
 
         const shiftQuery = await pool.query('SELECT s.name, s.start_time, s.end_time, u.base_salary FROM users u LEFT JOIN shifts s ON u.shift_id = s.id WHERE u.id = $1', [user_id]);
         
+        const shift = shiftQuery.rows[0] || null;
+
+        // Hitung durasi shift dalam detik (untuk cap per hari)
+        let shiftDurationSeconds = 28800; // default 8 jam
+        if (shift && shift.start_time && shift.end_time) {
+            const today = formatLocalDate(new Date());
+            let sStart = new Date(`${today}T${shift.start_time}`);
+            let sEnd = new Date(`${today}T${shift.end_time}`);
+            if (sEnd <= sStart) sEnd.setDate(sEnd.getDate() + 1);
+            shiftDurationSeconds = Math.floor((sEnd - sStart) / 1000);
+        }
+
+        // Untuk attendance yang masih open (belum clock_out), cap di waktu shift end hari itu
+        // Gunakan LEAST antara (clock_out atau shift_end_hari_itu atau NOW), dan durasi shift
         const absentQuery = await pool.query(
             `SELECT COUNT(id) as total_hadir, 
              COALESCE(SUM(
                 LEAST(
                     EXTRACT(EPOCH FROM (COALESCE(clock_out, CURRENT_TIMESTAMP) - clock_in)),
-                    28800 -- AUTO-CUTOFF: Maksimal 8 Jam (28.800 detik)
+                    $3 -- Cap berdasarkan durasi shift
                 )
              ), 0) as total_worked_seconds
              FROM attendances WHERE user_id = $1 AND TO_CHAR(date, 'YYYY-MM') = $2 AND status IN ('ontime', 'late')`, 
-            [user_id, month]
+            [user_id, month, shiftDurationSeconds]
         );
         
         const historyQuery = await pool.query("SELECT * FROM attendances WHERE user_id = $1 AND TO_CHAR(date, 'YYYY-MM') = $2 ORDER BY date DESC, clock_in DESC", [user_id, month]);
